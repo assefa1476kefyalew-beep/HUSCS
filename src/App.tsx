@@ -182,9 +182,8 @@ export default function App() {
         <div className="w-16 h-16 rounded-2xl bg-blue-900/80 border border-blue-500/30 text-amber-400 flex items-center justify-center shadow-2xl mb-4 animate-pulse">
           <GraduationCap className="w-8 h-8" />
         </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-          <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-          <span>Verifying Firebase Authentication...</span>
+        <div className="flex items-center justify-center">
+          <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
         </div>
       </div>
     );
