@@ -1,0 +1,6 @@
+{
+  "name": "Hawassa University Clearance System",
+  "description": "Enterprise digital student clearance management system with multi-role workflows, departmental approval pipeline, certificate generation, and QR verification.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
