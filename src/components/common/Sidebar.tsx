@@ -139,8 +139,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <>
               {/* Logo Branding */}
               <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-700 to-indigo-900 text-amber-400 flex items-center justify-center font-certificate font-extrabold text-sm shadow-md border border-blue-400/20 shrink-0">
-                  HU
+                <div className="w-9 h-9 rounded-full bg-white dark:bg-slate-800 p-0.5 shadow-sm border border-slate-200 dark:border-slate-700 shrink-0 flex items-center justify-center">
+                  <img 
+                    src="/hawassa-logo.png" 
+                    alt="Hawassa University Logo" 
+                    className="w-full h-full object-contain rounded-full" 
+                  />
                 </div>
                 <div className="transition-opacity duration-200 whitespace-nowrap">
                   <span className="font-extrabold text-xs tracking-tight text-slate-900 dark:text-white block leading-tight">

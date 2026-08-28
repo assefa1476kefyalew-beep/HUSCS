@@ -105,8 +105,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         
         {/* University Header Brand */}
         <div className="text-center space-y-2.5">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-700 to-indigo-900 dark:from-blue-900 dark:to-indigo-950 border border-blue-500/30 text-amber-400 mx-auto flex items-center justify-center shadow-lg shadow-blue-900/20 ring-4 ring-blue-50 dark:ring-blue-950/50">
-            <GraduationCap className="w-8 h-8" />
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white dark:bg-slate-800 border-2 border-amber-500/80 p-1 mx-auto flex items-center justify-center shadow-xl shadow-blue-900/20 ring-4 ring-blue-50 dark:ring-blue-950/50">
+            <img 
+              src="/hawassa-logo.png" 
+              alt="Hawassa University Official Logo" 
+              className="w-full h-full object-contain rounded-full"
+              loading="eager"
+            />
           </div>
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white font-feature-settings">

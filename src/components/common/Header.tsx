@@ -84,8 +84,12 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-800 to-indigo-950 text-amber-400 flex items-center justify-center shadow-md border border-amber-500/30 shrink-0 font-certificate font-extrabold text-base">
-              HU
+            <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 p-0.5 shadow-sm border border-slate-200 dark:border-slate-700 shrink-0 flex items-center justify-center">
+              <img 
+                src="/hawassa-logo.png" 
+                alt="Hawassa University Emblem" 
+                className="w-full h-full object-contain rounded-full" 
+              />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">

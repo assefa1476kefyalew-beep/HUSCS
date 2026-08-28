@@ -217,12 +217,12 @@ export const ClearanceCertificateDocument: React.FC<ClearanceCertificateDocument
             <div className="absolute -bottom-3 -right-3 w-8 h-8 border-b-4 border-r-4 border-amber-600 rounded-br-md pointer-events-none" />
 
             {/* University Crest Large Watermark */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none">
-              <svg className="w-[420px] h-[420px] text-[#0f284e]" viewBox="0 0 100 100" fill="currentColor">
-                <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="2" fill="none" />
-                <path d="M50 15 L78 30 L78 65 L50 85 L22 65 L22 30 Z" stroke="currentColor" strokeWidth="2" fill="none" />
-                <text x="50" y="58" fontSize="24" fontWeight="bold" textAnchor="middle" fill="currentColor">HU</text>
-              </svg>
+            <div className="absolute inset-0 flex items-center justify-center opacity-[0.045] pointer-events-none select-none">
+              <img 
+                src="/hawassa-logo.png" 
+                alt="Watermark" 
+                className="w-[380px] h-[380px] object-contain" 
+              />
             </div>
 
             {/* Top Certificate Header with University Logo */}
@@ -230,21 +230,13 @@ export const ClearanceCertificateDocument: React.FC<ClearanceCertificateDocument
               
               {/* Left: Official Hawassa University Crest Logo */}
               <div className="flex items-center gap-3.5 text-left">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-[#0a1e3b] via-[#0f284e] to-[#1e3a8a] border-2 border-amber-500 p-1.5 shadow-md flex items-center justify-center shrink-0">
-                  {/* Detailed Vector Emblem */}
-                  <svg className="w-full h-full text-amber-400" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="50" cy="50" r="46" stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="2 2" />
-                    <circle cx="50" cy="50" r="41" stroke="#3b82f6" strokeWidth="1.5" />
-                    {/* Shield */}
-                    <path d="M50 16 L76 28 C76 56 50 78 50 78 C50 78 24 56 24 28 Z" fill="#0c2340" stroke="#f59e0b" strokeWidth="2" />
-                    {/* Open Book */}
-                    <path d="M34 46 C42 42 50 46 50 46 C50 46 58 42 66 46 L66 62 C58 58 50 62 50 62 C50 62 42 58 34 62 Z" fill="#ffffff" stroke="#f59e0b" strokeWidth="1.2" />
-                    {/* Torch & Graduation Cap */}
-                    <polygon points="50,22 62,28 50,34 38,28" fill="#f59e0b" />
-                    <path d="M50 34 L50 44" stroke="#f59e0b" strokeWidth="1.5" />
-                    {/* Text HU */}
-                    <text x="50" y="56" fontSize="8" fontWeight="bold" textAnchor="middle" fill="#0f284e" fontFamily="sans-serif">1999</text>
-                  </svg>
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white border-2 border-amber-600 p-1 shadow-md flex items-center justify-center shrink-0">
+                  <img 
+                    src="/hawassa-logo.png" 
+                    alt="Hawassa University Official Seal" 
+                    className="w-full h-full object-contain rounded-full"
+                    crossOrigin="anonymous"
+                  />
                 </div>
                 <div>
                   <h3 className="font-serif text-base sm:text-lg font-bold text-[#0f284e] tracking-wide leading-tight">

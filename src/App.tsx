@@ -175,15 +175,12 @@ export default function App() {
     }
   };
 
-  // 1. Loading Authentication State Screen
+  // 1. Loading Authentication State Screen (Clean minimal loader without startup logo)
   if (isAuthChecking) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-slate-100 p-6">
-        <div className="w-16 h-16 rounded-2xl bg-blue-900/80 border border-blue-500/30 text-amber-400 flex items-center justify-center shadow-2xl mb-4 animate-pulse">
-          <GraduationCap className="w-8 h-8" />
-        </div>
         <div className="flex items-center justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
         </div>
       </div>
     );
