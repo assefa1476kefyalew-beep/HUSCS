@@ -20,14 +20,19 @@ import { StudentNotifications } from './components/student/StudentNotifications'
 import { OfficerDashboard } from './components/officer/OfficerDashboard';
 import { OfficerReports } from './components/officer/OfficerReports';
 import { OfficerStudentDirectory } from './components/officer/OfficerStudentDirectory';
+import { OfficerProfile } from './components/officer/OfficerProfile';
 
 // Admin / Registrar Components
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ClearanceManagement } from './components/admin/ClearanceManagement';
 import { CertificateRegistry } from './components/admin/CertificateRegistry';
 import { DepartmentSetup } from './components/admin/DepartmentSetup';
+import { ClearanceRulesEngine } from './components/admin/ClearanceRulesEngine';
 import { ClearancePeriods } from './components/admin/ClearancePeriods';
+import { UserAccountsManager } from './components/admin/UserAccountsManager';
+import { InstitutionalReports } from './components/admin/InstitutionalReports';
 import { AuditLogsViewer } from './components/admin/AuditLogsViewer';
+import { PortalSettings } from './components/admin/PortalSettings';
 
 import { ClearanceCertificate, ClearanceReasonType, SupportingDocument } from './types';
 import { Award, CheckCircle2, AlertCircle, Loader2, GraduationCap } from 'lucide-react';
@@ -267,6 +272,8 @@ export default function App() {
           }}
           pendingCount={store.currentRole === 'OFFICER' ? pendingOfficerCount : pendingAdminCount}
           unreadNotifsCount={unreadNotificationsCount}
+          students={store.students}
+          clearanceRequests={store.clearanceRequests}
           onLogout={handleLogout}
         />
 
@@ -402,6 +409,8 @@ export default function App() {
                 <OfficerStudentDirectory
                   students={store.students}
                   clearanceRequests={store.clearanceRequests}
+                  onNavigateTab={(tab) => setActiveTab(tab)}
+                  onShowToast={showToast}
                 />
               )}
 
@@ -421,16 +430,13 @@ export default function App() {
               )}
 
               {activeTab === 'officer-profile' && (
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-xs max-w-2xl mx-auto space-y-4">
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">Officer Profile</h2>
-                  <div className="space-y-2 text-xs">
-                    <p><strong>Name:</strong> {store.currentUser?.fullName}</p>
-                    <p><strong>Username:</strong> {store.currentUser?.username}</p>
-                    <p><strong>Email:</strong> {store.currentUser?.email}</p>
-                    <p><strong>Assigned Unit:</strong> {currentOfficerDept.name} ({currentOfficerDept.code})</p>
-                    <p><strong>Role:</strong> Department Clearance Officer</p>
-                  </div>
-                </div>
+                <OfficerProfile
+                  currentUser={store.currentUser!}
+                  department={currentOfficerDept}
+                  clearanceRequests={store.clearanceRequests}
+                  onUpdateProfile={(userId, updates) => store.updateUser(userId, updates)}
+                  onShowToast={showToast}
+                />
               )}
             </>
           )}
@@ -474,18 +480,63 @@ export default function App() {
                 <OfficerStudentDirectory
                   students={store.students}
                   clearanceRequests={store.clearanceRequests}
+                  onAddStudent={(newStudent) => store.addStudent(newStudent)}
+                  onImportBatch={(batch) => store.importStudentsBatch(batch)}
+                  onNavigateTab={(tab) => setActiveTab(tab)}
+                  onShowToast={showToast}
                 />
               )}
 
               {activeTab === 'admin-departments' && (
                 <DepartmentSetup
                   departments={store.departments}
+                  onAddDepartment={(dept) => store.addDepartment(dept)}
+                  onUpdateDepartment={(id, updates) => store.updateDepartment(id, updates)}
+                  onShowToast={showToast}
+                />
+              )}
+
+              {activeTab === 'admin-requirements' && (
+                <ClearanceRulesEngine
+                  departments={store.departments}
+                  requirements={store.requirements}
+                  onAddRequirement={(req) => store.addRequirement(req)}
+                  onUpdateRequirement={(id, updates) => store.updateRequirement(id, updates)}
+                  onShowToast={showToast}
                 />
               )}
 
               {activeTab === 'admin-periods' && (
                 <ClearancePeriods
                   periods={store.periods}
+                  onAddPeriod={(period) => store.addClearancePeriod(period)}
+                  onUpdatePeriod={(id, updates) => store.updateClearancePeriod(id, updates)}
+                  onShowToast={showToast}
+                />
+              )}
+
+              {activeTab === 'admin-users' && (
+                <UserAccountsManager
+                  users={store.allUsers}
+                  departments={store.departments}
+                  currentUser={store.currentUser}
+                  onAddUser={(userData) => store.addUser(userData)}
+                  onUpdateUser={(id, updates) => store.updateUser(id, updates)}
+                  onSwitchUser={(userId) => {
+                    store.switchUserById(userId);
+                    showToast('Persona Switched', 'Switched session to target user account.');
+                  }}
+                  onShowToast={showToast}
+                />
+              )}
+
+              {activeTab === 'admin-reports' && (
+                <InstitutionalReports
+                  requests={store.clearanceRequests}
+                  certificates={store.certificates}
+                  departments={store.departments}
+                  students={store.students}
+                  onShowToast={showToast}
                 />
               )}
 
@@ -495,10 +546,15 @@ export default function App() {
                 />
               )}
 
-              {activeTab === 'admin-reports' && (
-                <OfficerReports
-                  department={store.departments[0]}
-                  requests={store.clearanceRequests}
+              {activeTab === 'admin-settings' && (
+                <PortalSettings
+                  systemSettings={store.systemSettings}
+                  onUpdateSettings={(updates) => store.updateSystemSettings(updates)}
+                  onResetDatabase={() => {
+                    store.resetDatabase();
+                    showToast('Database Restored', 'Restored Hawassa University default demo dataset.');
+                  }}
+                  onShowToast={showToast}
                 />
               )}
             </>
