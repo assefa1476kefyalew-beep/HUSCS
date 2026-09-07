@@ -1,17 +1,28 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { initializeFirestore, getFirestore } from "firebase/firestore";
+import firebaseConfig from "../../firebase-applet-config.json";
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyBAXRtu206Km2VjUyjBwh7edYNq9MadMxs",
-  authDomain: "huscs-caa31.firebaseapp.com",
-  projectId: "huscs-caa31",
-  storageBucket: "huscs-caa31.firebasestorage.app",
-  messagingSenderId: "833817701413",
-  appId: "1:833817701413:web:5496ad193c51b6e17ee3cc",
-  measurementId: "G-8NZKYRQ2NS"
-};
-
-// Initialize Firebase
+// Initialize Firebase App
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
+// Initialize Firebase Auth
 export const auth = getAuth(app);
+
+// Initialize Firestore with robust long polling to prevent WebChannel drops in iframe/proxy environments
+const firestoreDbId = (firebaseConfig as any).firestoreDatabaseId;
+
+let firestoreInstance;
+try {
+  firestoreInstance = initializeFirestore(
+    app,
+    {
+      experimentalForceLongPolling: true,
+    },
+    firestoreDbId || undefined
+  );
+} catch {
+  firestoreInstance = firestoreDbId ? getFirestore(app, firestoreDbId) : getFirestore(app);
+}
+
+export const db = firestoreInstance;

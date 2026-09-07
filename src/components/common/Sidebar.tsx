@@ -40,13 +40,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   clearanceRequests = [],
   onLogout
 }) => {
-  // Student metrics calculations
-  const totalStudentsCount = students.length > 0 ? students.length : 12;
-  const inProgressCount = clearanceRequests.filter(r => r.overallStatus === 'IN_PROGRESS' || r.overallStatus === 'SUBMITTED').length;
-  const clearedCount = clearanceRequests.filter(r => r.overallStatus === 'APPROVED' || r.overallStatus === 'COMPLETED').length;
-  const onHoldCount = clearanceRequests.filter(r => r.overallStatus === 'ON_HOLD').length;
-  const graduatingCount = students.filter(s => s.clearanceReason === 'GRADUATION' || s.expectedGraduationYear === 2024).length || totalStudentsCount;
-
   const getNavItems = () => {
     switch (currentRole) {
       case 'STUDENT':
@@ -63,7 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         return [
           { id: 'officer-dashboard', label: 'Department Dashboard', icon: LayoutDashboard, hint: 'Department queue summary' },
           { id: 'officer-queue', label: 'Clearance Requests', icon: CheckSquare, badge: pendingCount, hint: 'Approve or hold students' },
-          { id: 'officer-students', label: 'Student Directory', icon: Search, isStudentDatabase: true, hint: 'Search university roster' },
+          { id: 'officer-students', label: 'Student Directory', icon: Search, hint: 'Search university roster' },
           { id: 'officer-reports', label: 'Department Analytics', icon: BarChart3, hint: 'Clearance turnaround metrics' },
           { id: 'officer-notifications', label: 'Notifications', icon: Bell, badge: unreadNotifsCount, hint: 'Incoming requests' },
           { id: 'officer-profile', label: 'Officer Profile', icon: User, hint: 'Sign-off credentials' }
@@ -74,7 +67,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'admin-dashboard', label: 'Overview Dashboard', icon: LayoutDashboard, hint: 'Executive summary' },
           { id: 'admin-clearances', label: 'All Clearance Requests', icon: FileCheck, badge: pendingCount, hint: 'All campus workflows' },
           { id: 'admin-certificates', label: 'Issued Certificates', icon: Award, hint: 'Official digital certificates' },
-          { id: 'admin-students', label: 'Student Database', icon: Users, isStudentDatabase: true, hint: 'Academic registry' },
+          { id: 'admin-students', label: 'Student Database', icon: Users, hint: 'Academic registry' },
+          { id: 'admin-users', label: 'User Accounts & Registration', icon: Users, hint: 'Register students, officers & staff' },
           { id: 'admin-periods', label: 'Clearance Periods', icon: Calendar, hint: 'Active terms & dates' },
           { id: 'admin-reports', label: 'Institutional Reports', icon: BarChart3, hint: 'University statistics' },
           { id: 'admin-audit', label: 'Audit Logs', icon: ShieldAlert, hint: 'Security ledger' }
@@ -87,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'admin-dashboard', label: 'Analytics Dashboard', icon: LayoutDashboard, hint: 'Central portal metrics' },
           { id: 'admin-clearances', label: 'Clearance Operations', icon: FileCheck, hint: 'Manage campus requests' },
           { id: 'admin-certificates', label: 'Certificates Registry', icon: Award, hint: 'Digital stamp records' },
-          { id: 'admin-students', label: 'Student Database', icon: Users, isStudentDatabase: true, hint: 'Master student records' },
+          { id: 'admin-students', label: 'Student Database', icon: Users, hint: 'Master student records' },
           { id: 'admin-departments', label: 'Departments', icon: Building2, hint: '8 Clearance offices' },
           { id: 'admin-requirements', label: 'Clearance Rules Engine', icon: Sliders, hint: 'Department criteria' },
           { id: 'admin-periods', label: 'Academic Years & Periods', icon: Calendar, hint: 'Academic calendars' },
@@ -212,7 +206,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {navItems.map(item => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
-            const isStudentDb = item.id === 'admin-students' || item.id === 'officer-students';
             
             return (
               <div key={item.id} className="relative group space-y-1">
@@ -241,24 +234,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     )}
                   </div>
 
-                  {/* Attractive Student Database Count Badge in Expanded Mode */}
-                  {!isCollapsed && isStudentDb && (
-                    <span 
-                      id="sidebar-student-total-badge"
-                      className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full flex items-center gap-1 transition-all shadow-2xs ${
-                        isActive 
-                          ? 'bg-amber-400 text-blue-950 font-black' 
-                          : 'bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60'
-                      }`}
-                      title={`Total enrolled students in directory: ${totalStudentsCount}`}
-                    >
-                      <Users className="w-3 h-3" />
-                      <span>{totalStudentsCount} Students</span>
-                    </span>
-                  )}
-
                   {/* Standard Badge in Expanded Mode (e.g. pending requests or unread notifications) */}
-                  {!isCollapsed && !isStudentDb && item.badge && item.badge > 0 ? (
+                  {!isCollapsed && item.badge && item.badge > 0 ? (
                     <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full ${
                       isActive ? 'bg-amber-400 text-blue-950 shadow-xs' : 'bg-rose-500 text-white'
                     }`}>
@@ -267,13 +244,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ) : null}
 
                   {/* Collapsed Mode Badge Indicators */}
-                  {isCollapsed && isStudentDb && (
-                    <span className="absolute top-1.5 right-1.5 px-1 py-0.2 text-[9px] font-black rounded-full bg-blue-600 text-white ring-2 ring-white dark:ring-slate-900 shadow-xs">
-                      {totalStudentsCount}
-                    </span>
-                  )}
-
-                  {isCollapsed && !isStudentDb && item.badge && item.badge > 0 ? (
+                  {isCollapsed && item.badge && item.badge > 0 ? (
                     <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900 animate-pulse" />
                   ) : null}
                 </button>
@@ -288,11 +259,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <span className="font-bold text-xs text-white">
                           {item.label}
                         </span>
-                        {isStudentDb ? (
-                          <span className="px-2 py-0.5 text-[10px] font-black bg-blue-500 text-white rounded-full">
-                            {totalStudentsCount} Students
-                          </span>
-                        ) : item.badge && item.badge > 0 ? (
+                        {item.badge && item.badge > 0 ? (
                           <span className="px-1.5 py-0.5 text-[10px] font-extrabold bg-amber-400 text-blue-950 rounded-full">
                             {item.badge}
                           </span>

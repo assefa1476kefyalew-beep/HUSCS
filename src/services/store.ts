@@ -13,6 +13,12 @@ import {
   initialCertificates, initialClearanceRequests, 
   initialNotifications, initialAuditLogs, initialDocuments
 } from '../data/seedData';
+import { 
+  saveUserToFirestore, 
+  seedInitialDataToFirestore,
+  saveClearanceRequestToFirestore,
+  saveAuditLogToFirestore
+} from './firebaseDb';
 
 const STORAGE_KEY = 'hawassa_clearance_system_v1';
 
@@ -82,6 +88,13 @@ function getInitialState(): AppState {
 
 let globalState: AppState = getInitialState();
 const listeners = new Set<() => void>();
+
+// Non-blocking background seed to Firestore
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    seedInitialDataToFirestore().catch(e => console.warn('[Firestore] Seed init check:', e));
+  }, 1000);
+}
 
 function notify() {
   try {
@@ -163,6 +176,8 @@ export const store = {
 
     if (foundUser) {
       globalState.currentUser = foundUser;
+      // Also ensure found user exists in Firestore
+      saveUserToFirestore(foundUser).catch(() => {});
       store.addAuditLog({
         action: 'USER_LOGIN',
         entity: 'User',
@@ -170,10 +185,10 @@ export const store = {
         description: `User ${foundUser.fullName} (${foundUser.role}) signed in`
       });
     } else {
-      // Create a transient session user in memory (no persistent profile data saved)
+      // Create and persist user in Firestore and store state
       const username = email.split('@')[0];
       const defaultStudent = globalState.students[0];
-      const tempUser: User = {
+      const newUser: User = {
         id: `usr-firebase-${Date.now()}`,
         username: username,
         email: email,
@@ -185,15 +200,18 @@ export const store = {
         studentId: defaultStudent ? defaultStudent.id : undefined,
         createdAt: new Date().toISOString()
       };
-      globalState.currentUser = tempUser;
+      globalState.users = [newUser, ...globalState.users];
+      globalState.currentUser = newUser;
+      saveUserToFirestore(newUser).catch(err => console.error('[Firestore] User save error:', err));
       store.addAuditLog({
         action: 'USER_SIGNUP',
         entity: 'User',
-        entityId: tempUser.id,
-        description: `New user ${tempUser.email} authenticated`
+        entityId: newUser.id,
+        description: `New user ${newUser.email} authenticated and stored to Firestore`
       });
     }
     notify();
+    return globalState.currentUser;
   },
 
   loginWithCredentials: (identifier: string, role?: Role): { success: boolean; message?: string } => {
@@ -843,13 +861,14 @@ export const store = {
     notify();
   },
 
-  addUser: (userData: Omit<User, 'id' | 'createdAt'>) => {
+  addUser: (userData: User | Omit<User, 'id' | 'createdAt'>) => {
     const newUser: User = {
-      ...userData,
-      id: `usr-${Date.now()}`,
-      createdAt: new Date().toISOString().split('T')[0]
+      id: 'id' in userData && userData.id ? userData.id : `usr-${Date.now()}`,
+      createdAt: 'createdAt' in userData && userData.createdAt ? userData.createdAt : new Date().toISOString().split('T')[0],
+      ...userData
     };
-    globalState.users = [...globalState.users, newUser];
+    globalState.users = [...globalState.users.filter(u => u.id !== newUser.id), newUser];
+    saveUserToFirestore(newUser).catch(err => console.error('[Firestore] User save error:', err));
     store.addAuditLog({
       action: 'USER_CREATED',
       entity: 'User',
@@ -860,14 +879,25 @@ export const store = {
   },
 
   updateUser: (userId: string, updates: Partial<User>) => {
-    globalState.users = globalState.users.map(u => 
-      u.id === userId ? { ...u, ...updates } : u
-    );
+    let updatedUserRecord: User | null = null;
+    globalState.users = globalState.users.map(u => {
+      if (u.id === userId) {
+        updatedUserRecord = { ...u, ...updates };
+        return updatedUserRecord;
+      }
+      return u;
+    });
+    if (globalState.currentUser && globalState.currentUser.id === userId) {
+      globalState.currentUser = { ...globalState.currentUser, ...updates };
+    }
+    if (updatedUserRecord) {
+      saveUserToFirestore(updatedUserRecord).catch(err => console.error('[Firestore] User update error:', err));
+    }
     store.addAuditLog({
       action: 'USER_UPDATED',
       entity: 'User',
       entityId: userId,
-      description: `Updated user account status or permissions`
+      description: `Updated profile details and preferences for ${updates.fullName || globalState.currentUser?.fullName || userId}`
     });
     notify();
   },

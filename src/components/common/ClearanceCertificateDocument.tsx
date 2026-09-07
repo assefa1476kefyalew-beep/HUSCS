@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { generateVerificationQRCode, formatDate, formatDateTime } from '../../utils/helpers';
 import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface ClearanceCertificateDocumentProps {
   certificate: ClearanceCertificate;
@@ -29,6 +30,7 @@ export const ClearanceCertificateDocument: React.FC<ClearanceCertificateDocument
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const certificateRef = useRef<HTMLDivElement>(null);
 
   // Normalize student information from certificate, student prop, or request
@@ -76,25 +78,78 @@ export const ClearanceCertificateDocument: React.FC<ClearanceCertificateDocument
     });
   }, [certNumber]);
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrintOrSavePdf = async () => {
+    if (!certificateRef.current) {
+      window.print();
+      return;
+    }
+    try {
+      setIsGeneratingPdf(true);
+      // Wait slightly for DOM font and image layout
+      await new Promise(r => setTimeout(r, 120));
+
+      const canvas = await html2canvas(certificateRef.current, {
+        scale: 2.2, // Crisp retina A4 printing
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        imageTimeout: 8000
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.96);
+      
+      // Create A4 PDF in portrait format
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      const margin = 8;
+      const printableWidth = pageWidth - (margin * 2);
+      const imgHeight = (canvas.height * printableWidth) / canvas.width;
+      
+      const yOffset = imgHeight < pageHeight - (margin * 2) 
+        ? margin + ((pageHeight - (margin * 2) - imgHeight) / 5) 
+        : margin;
+
+      pdf.addImage(imgData, 'JPEG', margin, yOffset, printableWidth, Math.min(imgHeight, pageHeight - (margin * 2)));
+      pdf.save(`Hawassa_University_Clearance_Certificate_${certNumber.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`);
+
+      // Trigger native window.print() so browser print dialog also opens if desired
+      setTimeout(() => {
+        window.print();
+      }, 400);
+    } catch (error) {
+      console.error('Error generating certificate PDF:', error);
+      // Fallback to native window.print
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const handleDownloadImage = async () => {
     if (!certificateRef.current) return;
     try {
       setIsDownloading(true);
-      // Wait slightly for any font rendering
-      await new Promise(r => setTimeout(r, 100));
+      // Wait slightly for rendering
+      await new Promise(r => setTimeout(r, 120));
 
       const canvas = await html2canvas(certificateRef.current, {
-        scale: 2.5, // Crisp retina resolution
+        scale: 2.5, // Crisp 2.5x high resolution
         useCORS: true,
+        allowTaint: true,
         logging: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        imageTimeout: 8000
       });
 
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/png', 1.0);
       const link = document.createElement('a');
       link.href = imgData;
       link.download = `Hawassa_University_Clearance_Certificate_${certNumber.replace(/[^a-zA-Z0-9_-]/g, '_')}.png`;
@@ -103,7 +158,6 @@ export const ClearanceCertificateDocument: React.FC<ClearanceCertificateDocument
       document.body.removeChild(link);
     } catch (error) {
       console.error('Error generating certificate image:', error);
-      // Fallback to print
       window.print();
     } finally {
       setIsDownloading(false);
@@ -165,12 +219,22 @@ export const ClearanceCertificateDocument: React.FC<ClearanceCertificateDocument
 
             <button
               id="btn-print-cert-pdf"
-              onClick={handlePrint}
-              className="px-3.5 sm:px-4 py-2 bg-amber-400 hover:bg-amber-300 text-blue-950 rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
-              title="Print Certificate or Save as PDF"
+              onClick={handlePrintOrSavePdf}
+              disabled={isGeneratingPdf}
+              className="px-3.5 sm:px-4 py-2 bg-amber-400 hover:bg-amber-300 text-blue-950 rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+              title="Save as PDF Document & Open Print Dialog"
             >
-              <Printer className="w-4 h-4" />
-              <span>Print / Save PDF</span>
+              {isGeneratingPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Generating PDF...</span>
+                </>
+              ) : (
+                <>
+                  <Printer className="w-4 h-4" />
+                  <span>Print / Save PDF</span>
+                </>
+              )}
             </button>
 
             <button

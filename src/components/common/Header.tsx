@@ -22,6 +22,7 @@ interface HeaderProps {
   onLogout?: () => void;
   onResetData?: () => void;
   onNavigateToEntity?: (entityId: string) => void;
+  onOpenProfile?: () => void;
   onOpenPublicVerification?: () => void;
   onMarkNotificationRead?: (id: string) => void;
   onMarkAllNotificationsRead?: () => void;
@@ -36,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout = () => {},
   onResetData = () => {},
   onNavigateToEntity,
+  onOpenProfile,
   onOpenPublicVerification,
   onMarkNotificationRead,
   onMarkAllNotificationsRead
@@ -191,8 +193,13 @@ export const Header: React.FC<HeaderProps> = ({
 
                 <div className="py-1">
                   <button
+                    id="btn-menu-account-profile"
                     onClick={() => {
-                      if (onNavigateToEntity) onNavigateToEntity('profile');
+                      if (onOpenProfile) {
+                        onOpenProfile();
+                      } else if (onNavigateToEntity) {
+                        onNavigateToEntity('profile');
+                      }
                       setShowUserMenu(false);
                     }}
                     className="w-full px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl flex items-center gap-2 transition-colors cursor-pointer"

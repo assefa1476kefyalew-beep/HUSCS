@@ -1,0 +1,113 @@
+{
+  "entities": {
+    "UserProfile": {
+      "collection": "users",
+      "fields": {
+        "userId": { "type": "string", "description": "Unique user identifier or account ID" },
+        "email": { "type": "string", "description": "User email address for login" },
+        "fullName": { "type": "string", "description": "User's full official name" },
+        "role": { "type": "string", "description": "STUDENT, DEPARTMENT_OFFICER, DEAN, REGISTRAR, or SUPER_ADMIN" },
+        "departmentId": { "type": "string", "optional": true, "description": "Department ID if officer or dean" },
+        "studentId": { "type": "string", "optional": true, "description": "Student ID reference if student" },
+        "phone": { "type": "string", "optional": true, "description": "Contact phone number" },
+        "office": { "type": "string", "optional": true, "description": "Office location or dorm" },
+        "avatarUrl": { "type": "string", "optional": true, "description": "Profile picture preset or URL" },
+        "status": { "type": "string", "description": "ACTIVE or SUSPENDED" },
+        "isTwoFactorEnabled": { "type": "boolean", "optional": true },
+        "createdAt": { "type": "string", "description": "ISO timestamp of account creation" },
+        "updatedAt": { "type": "string", "optional": true }
+      }
+    },
+    "Student": {
+      "collection": "students",
+      "fields": {
+        "studentId": { "type": "string", "description": "Hawassa student ID number (e.g. HU/1476/13)" },
+        "fullName": { "type": "string", "description": "Full student name" },
+        "gender": { "type": "string" },
+        "program": { "type": "string" },
+        "college": { "type": "string" },
+        "department": { "type": "string" },
+        "year": { "type": "number" },
+        "semester": { "type": "number" },
+        "academicYear": { "type": "string" },
+        "gpa": { "type": "number" },
+        "dormitoryNumber": { "type": "string", "optional": true },
+        "status": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" }
+      }
+    },
+    "ClearanceRequest": {
+      "collection": "clearanceRequests",
+      "fields": {
+        "studentId": { "type": "string", "description": "Student document ID" },
+        "studentStudentId": { "type": "string", "description": "Formatted HU Student ID" },
+        "studentName": { "type": "string" },
+        "studentDepartment": { "type": "string" },
+        "studentCollege": { "type": "string" },
+        "studentProgram": { "type": "string" },
+        "reason": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "semester": { "type": "number" },
+        "submissionDate": { "type": "string" },
+        "overallStatus": { "type": "string" },
+        "items": { "type": "array" },
+        "progressPercentage": { "type": "number" },
+        "isFinalApproved": { "type": "boolean" },
+        "finalApprovedAt": { "type": "string", "optional": true },
+        "finalApprovedBy": { "type": "string", "optional": true }
+      }
+    },
+    "Department": {
+      "collection": "departments",
+      "fields": {
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "isMandatory": { "type": "boolean" },
+        "order": { "type": "number" },
+        "officeLocation": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "AuditLog": {
+      "collection": "auditLogs",
+      "fields": {
+        "timestamp": { "type": "string" },
+        "actorId": { "type": "string" },
+        "actorName": { "type": "string" },
+        "actorRole": { "type": "string" },
+        "actionType": { "type": "string" },
+        "category": { "type": "string" },
+        "entityType": { "type": "string" },
+        "entityKey": { "type": "string" },
+        "narrative": { "type": "string" },
+        "ipAddress": { "type": "string" },
+        "deviceAgent": { "type": "string" },
+        "hashSignature": { "type": "string" }
+      }
+    },
+    "Certificate": {
+      "collection": "certificates",
+      "fields": {
+        "certificateNumber": { "type": "string" },
+        "requestId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentStudentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentDepartment": { "type": "string" },
+        "studentCollege": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "reason": { "type": "string" },
+        "issuedDate": { "type": "string" },
+        "issuedBy": { "type": "string" },
+        "qrCodeData": { "type": "string" },
+        "verificationHash": { "type": "string" },
+        "verificationUrl": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    }
+  }
+}

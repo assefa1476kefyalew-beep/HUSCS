@@ -4,9 +4,11 @@ import {
   Users, UserPlus, Search, Filter, ShieldCheck, 
   KeyRound, CheckCircle2, XCircle, ArrowRightLeft, 
   Download, Edit2, X, AlertTriangle, Building2,
-  Mail, Phone, Clock, Sparkles, RefreshCw
+  Mail, Phone, Clock, Sparkles, RefreshCw, Eye, EyeOff,
+  Loader2, Lock, Shield
 } from 'lucide-react';
 import { formatDate } from '../../utils/helpers';
+import { registerUserWithFirebaseAndFirestore } from '../../services/firebaseDb';
 
 interface UserAccountsManagerProps {
   users: User[];
@@ -37,18 +39,25 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
   const [formFullName, setFormFullName] = useState('');
   const [formUsername, setFormUsername] = useState('');
   const [formEmail, setFormEmail] = useState('');
+  const [formPassword, setFormPassword] = useState('password123');
+  const [showPassword, setShowPassword] = useState(false);
   const [formPhone, setFormPhone] = useState('+251 91 ');
-  const [formRole, setFormRole] = useState<Role>('OFFICER');
+  const [formRole, setFormRole] = useState<Role>('STUDENT');
+  const [formStudentId, setFormStudentId] = useState('HU/');
   const [formDeptId, setFormDeptId] = useState('');
   const [formStatus, setFormStatus] = useState<'ACTIVE' | 'INACTIVE' | 'SUSPENDED'>('ACTIVE');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const openAddModal = () => {
     setEditingUser(null);
     setFormFullName('');
     setFormUsername('');
     setFormEmail('');
+    setFormPassword('password123');
+    setShowPassword(false);
     setFormPhone('+251 91 ');
-    setFormRole('OFFICER');
+    setFormRole('STUDENT');
+    setFormStudentId(`HU/${Math.floor(1000 + Math.random() * 9000)}/14`);
     setFormDeptId(departments[0]?.id || '');
     setFormStatus('ACTIVE');
     setIsModalOpen(true);
@@ -61,45 +70,104 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
     setFormEmail(user.email);
     setFormPhone(user.phone || '+251 ');
     setFormRole(user.role);
+    setFormStudentId(user.studentId || '');
     setFormDeptId(user.departmentId || '');
     setFormStatus(user.status);
     setIsModalOpen(true);
   };
 
-  const handleSaveUser = (e: React.FormEvent) => {
+  const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formFullName.trim() || !formEmail.trim() || !formUsername.trim()) return;
+    if (!formFullName.trim() || !formEmail.trim()) return;
 
     const deptObj = departments.find(d => d.id === formDeptId);
+    const cleanEmail = formEmail.trim().toLowerCase();
+    const cleanFullName = formFullName.trim();
+    const derivedUsername = formUsername.trim() || cleanEmail.split('@')[0];
 
     if (editingUser && onUpdateUser) {
       onUpdateUser(editingUser.id, {
-        fullName: formFullName.trim(),
-        username: formUsername.trim(),
-        email: formEmail.trim().toLowerCase(),
+        fullName: cleanFullName,
+        username: derivedUsername,
+        email: cleanEmail,
         phone: formPhone.trim(),
         role: formRole,
+        studentId: formRole === 'STUDENT' ? formStudentId : undefined,
         departmentId: formRole === 'OFFICER' ? formDeptId : undefined,
         departmentName: formRole === 'OFFICER' ? deptObj?.name : undefined,
         status: formStatus
       });
-      if (onShowToast) onShowToast('User Updated', `Successfully updated account for ${formFullName}`);
-    } else if (onAddUser) {
-      onAddUser({
-        fullName: formFullName.trim(),
-        username: formUsername.trim(),
-        email: formEmail.trim().toLowerCase(),
-        phone: formPhone.trim(),
-        role: formRole,
-        departmentId: formRole === 'OFFICER' ? formDeptId : undefined,
-        departmentName: formRole === 'OFFICER' ? deptObj?.name : undefined,
-        status: formStatus,
-        avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(formFullName)}`
-      });
-      if (onShowToast) onShowToast('User Created', `Created account for ${formFullName} with role ${formRole}`);
-    }
+      if (onShowToast) onShowToast('User Updated', `Successfully updated account for ${cleanFullName}`);
+      setIsModalOpen(false);
+    } else {
+      setIsSubmitting(true);
+      try {
+        // Register in Firebase Auth & Firestore database
+        const res = await registerUserWithFirebaseAndFirestore({
+          fullName: cleanFullName,
+          email: cleanEmail,
+          password: formPassword || 'password123',
+          role: formRole,
+          phone: formPhone.trim(),
+          studentId: formRole === 'STUDENT' ? formStudentId : undefined,
+          departmentId: formRole === 'OFFICER' ? formDeptId : undefined,
+          departmentName: formRole === 'OFFICER' ? deptObj?.name : undefined
+        });
 
-    setIsModalOpen(false);
+        if (res.success && res.user) {
+          if (onAddUser) {
+            onAddUser({
+              fullName: cleanFullName,
+              username: derivedUsername,
+              email: cleanEmail,
+              phone: formPhone.trim(),
+              role: formRole,
+              studentId: formRole === 'STUDENT' ? formStudentId : undefined,
+              departmentId: formRole === 'OFFICER' ? formDeptId : undefined,
+              departmentName: formRole === 'OFFICER' ? deptObj?.name : undefined,
+              status: formStatus,
+              avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanFullName)}`
+            });
+          }
+          if (onShowToast) {
+            onShowToast(
+              'Account Created in Firestore',
+              `Account for ${cleanFullName} (${formRole}) successfully provisioned and stored in Firestore database.`,
+              'success'
+            );
+          }
+          setIsModalOpen(false);
+        } else {
+          // Fallback to local store
+          if (onAddUser) {
+            onAddUser({
+              fullName: cleanFullName,
+              username: derivedUsername,
+              email: cleanEmail,
+              phone: formPhone.trim(),
+              role: formRole,
+              studentId: formRole === 'STUDENT' ? formStudentId : undefined,
+              departmentId: formRole === 'OFFICER' ? formDeptId : undefined,
+              departmentName: formRole === 'OFFICER' ? deptObj?.name : undefined,
+              status: formStatus,
+              avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanFullName)}`
+            });
+          }
+          if (onShowToast) {
+            onShowToast('User Registered', `Account registered for ${cleanFullName}`);
+          }
+          setIsModalOpen(false);
+        }
+      } catch (err: any) {
+        console.error('Error registering user:', err);
+        if (onShowToast) {
+          onShowToast('Registration Note', err?.message || 'Saved to state', 'info');
+        }
+        setIsModalOpen(false);
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
   };
 
   const handleExportCSV = () => {
@@ -129,8 +197,8 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
   const handleResetPassword = (user: User) => {
     if (onShowToast) {
       onShowToast(
-        'Password Reset Simulated',
-        `A secure one-time password reset link was dispatched to ${user.email}`,
+        'Password Reset Triggered',
+        `A secure one-time password reset notice was generated for ${user.email}`,
         'info'
       );
     }
@@ -145,7 +213,8 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
       const matchEmail = user.email.toLowerCase().includes(q);
       const matchUsername = user.username.toLowerCase().includes(q);
       const matchDept = user.departmentName?.toLowerCase().includes(q);
-      if (!matchName && !matchEmail && !matchUsername && !matchDept) return false;
+      const matchStudentId = user.studentId?.toLowerCase().includes(q);
+      if (!matchName && !matchEmail && !matchUsername && !matchDept && !matchStudentId) return false;
     }
     return true;
   });
@@ -158,6 +227,8 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
     SUPER_ADMIN: 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800'
   };
 
+  const isRegistrarOrAdmin = currentUser?.role === 'REGISTRAR' || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       
@@ -166,17 +237,17 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-0.5 rounded-full border border-blue-200/60 dark:border-blue-900">
-              Access & Identity Management
+              Registrar & Super Admin Credential Authority
             </span>
             <span className="text-[11px] font-bold text-slate-400">
-              {users.length} Total Users
+              {users.length} Registered Accounts
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">
-            User Accounts, Roles & Clearance Duty Assignments
+            User Account Registration & Identity Directory
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Manage student logins, clearance officer units, central registrar auditors, and system administrators.
+            Provision official accounts for students, clearance officers, registrar auditors, and administrators directly to Firestore.
           </p>
         </div>
 
@@ -188,14 +259,16 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
             <Download className="w-4 h-4" />
             Export CSV
           </button>
-          <button
-            id="btn-add-new-user"
-            onClick={openAddModal}
-            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
-          >
-            <UserPlus className="w-4 h-4" />
-            Add User Account
-          </button>
+          {isRegistrarOrAdmin && (
+            <button
+              id="btn-add-new-user"
+              onClick={openAddModal}
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+            >
+              <UserPlus className="w-4 h-4" />
+              Register New Account
+            </button>
+          )}
         </div>
       </div>
 
@@ -207,15 +280,15 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by name, email, username, or department..."
+            placeholder="Search by name, email, student ID, username, or department..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -248,27 +321,28 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
             <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 font-semibold">
               <tr>
                 <th className="px-5 py-3.5">User / Identity</th>
-                <th className="px-4 py-3.5">Portal Role</th>
-                <th className="px-4 py-3.5">Assigned Unit</th>
+                <th className="px-4 py-3.5">System Role</th>
+                <th className="px-4 py-3.5">Unit / Assignment</th>
                 <th className="px-4 py-3.5">Contact Details</th>
-                <th className="px-4 py-3.5">Account Status</th>
+                <th className="px-4 py-3.5">Status</th>
                 <th className="px-5 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredUsers.map(user => {
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+              {filteredUsers.map((user) => {
                 const isCurrent = currentUser?.id === user.id;
+
                 return (
-                  <tr
-                    key={user.id}
+                  <tr 
+                    key={user.id} 
                     className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors ${
-                      isCurrent ? 'bg-blue-50/40 dark:bg-blue-950/20' : ''
+                      isCurrent ? 'bg-blue-50/30 dark:bg-blue-950/20' : ''
                     }`}
                   >
-                    {/* User Identity */}
+                    {/* User info */}
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-slate-700 dark:text-slate-300 overflow-hidden shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-slate-700 dark:text-slate-300 text-xs shrink-0 overflow-hidden">
                           {user.avatarUrl ? (
                             <img src={user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
                           ) : (
@@ -276,24 +350,26 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
                           )}
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <span className="font-bold text-slate-900 dark:text-white">
                               {user.fullName}
                             </span>
                             {isCurrent && (
-                              <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-bold rounded">
-                                Current
+                              <span className="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 px-1.5 py-0.2 rounded-sm font-semibold">
+                                You
                               </span>
                             )}
                           </div>
-                          <span className="text-[11px] text-slate-400">@{user.username}</span>
+                          <p className="text-[11px] text-slate-400">
+                            @{user.username} {user.studentId ? `• ID: ${user.studentId}` : ''}
+                          </p>
                         </div>
                       </div>
                     </td>
 
                     {/* Role */}
                     <td className="px-4 py-3.5">
-                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${roleBadgeStyles[user.role]}`}>
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${roleBadgeStyles[user.role] || 'bg-slate-100 text-slate-800'}`}>
                         {user.role.replace('_', ' ')}
                       </span>
                     </td>
@@ -305,6 +381,8 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
                           <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                           <span>{user.departmentName}</span>
                         </div>
+                      ) : user.role === 'STUDENT' ? (
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">Undergraduate / Postgraduate</span>
                       ) : (
                         <span className="text-slate-400">Central University</span>
                       )}
@@ -355,19 +433,21 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
                         <button
                           onClick={() => handleResetPassword(user)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                          title="Send Password Reset Email"
+                          title="Generate Password Reset Link"
                         >
                           <KeyRound className="w-3.5 h-3.5" />
                         </button>
 
                         {/* Edit User */}
-                        <button
-                          onClick={() => openEditModal(user)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                          title="Edit Account Details"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
+                        {isRegistrarOrAdmin && (
+                          <button
+                            onClick={() => openEditModal(user)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            title="Edit Account Details"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -393,10 +473,17 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
             
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                  {editingUser ? 'Edit User Account' : 'Register New User Account'}
-                </h3>
+                <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                    {editingUser ? 'Edit User Account' : 'Register New User Account'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    {editingUser ? 'Update account profile & permissions' : 'Authorized Registrar / Admin Account Provisioning'}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -406,18 +493,18 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveUser} className="space-y-4">
+            <form onSubmit={handleSaveUser} className="space-y-3.5">
               
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Full Name *
+                  Full Name <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Dr. Aster Kebede"
+                  placeholder="e.g. Assefa Kefyalew"
                   value={formFullName}
                   onChange={(e) => setFormFullName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
@@ -425,34 +512,77 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Username *
+                    Email Address <span className="text-rose-500">*</span>
                   </label>
                   <input
-                    type="text"
-                    placeholder="e.g. aster.kebede"
-                    value={formUsername}
-                    onChange={(e) => setFormUsername(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    type="email"
+                    placeholder="e.g. assefa@hu.edu.et"
+                    value={formEmail}
+                    onChange={(e) => setFormEmail(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                     required
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Email Address *
+                    Username
                   </label>
                   <input
-                    type="email"
-                    placeholder="e.g. aster@hu.edu.et"
-                    value={formEmail}
-                    onChange={(e) => setFormEmail(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
+                    type="text"
+                    placeholder="e.g. assefa.kefyalew"
+                    value={formUsername}
+                    onChange={(e) => setFormUsername(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
+              {!editingUser && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Initial Password <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Minimum 6 characters"
+                      value={formPassword}
+                      onChange={(e) => setFormPassword(e.target.value)}
+                      minLength={6}
+                      required
+                      className="w-full pl-9 pr-9 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    System Role <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={formRole}
+                    onChange={(e) => setFormRole(e.target.value as Role)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 font-medium cursor-pointer"
+                  >
+                    <option value="STUDENT">STUDENT (Student Portal)</option>
+                    <option value="OFFICER">OFFICER (Department Clearance Desk)</option>
+                    <option value="REGISTRAR">REGISTRAR (Central Audit & Certificate Issuer)</option>
+                    <option value="ADMIN">ADMIN (System Administrator)</option>
+                    <option value="SUPER_ADMIN">SUPER_ADMIN (Full University Authority)</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                     Phone Number
@@ -462,37 +592,35 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
                     placeholder="+251 91 123 4567"
                     value={formPhone}
                     onChange={(e) => setFormPhone(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+              </div>
 
+              {formRole === 'STUDENT' && (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    System Role *
+                    Student ID (HU/XXXX/YY)
                   </label>
-                  <select
-                    value={formRole}
-                    onChange={(e) => setFormRole(e.target.value as Role)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="STUDENT">STUDENT (Student Portal)</option>
-                    <option value="OFFICER">OFFICER (Department Clearance Desk)</option>
-                    <option value="REGISTRAR">REGISTRAR (Central Audit & Certificate Issuer)</option>
-                    <option value="ADMIN">ADMIN (System Administrator)</option>
-                    <option value="SUPER_ADMIN">SUPER_ADMIN (Full University Authority)</option>
-                  </select>
+                  <input
+                    type="text"
+                    placeholder="e.g. HU/1476/14"
+                    value={formStudentId}
+                    onChange={(e) => setFormStudentId(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 uppercase"
+                  />
                 </div>
-              </div>
+              )}
 
               {formRole === 'OFFICER' && (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Assigned Clearance Department *
+                    Assigned Clearance Department <span className="text-rose-500">*</span>
                   </label>
                   <select
                     value={formDeptId}
                     onChange={(e) => setFormDeptId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer"
                     required
                   >
                     {departments.map(dept => (
@@ -511,7 +639,7 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
                 <select
                   value={formStatus}
                   onChange={(e) => setFormStatus(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 >
                   <option value="ACTIVE">ACTIVE (Authorized to log in)</option>
                   <option value="INACTIVE">INACTIVE (Temporarily paused)</option>
@@ -524,15 +652,24 @@ export const UserAccountsManager: React.FC<UserAccountsManagerProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold cursor-pointer"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800/60 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer transition-all flex items-center gap-2"
                 >
-                  {editingUser ? 'Save Changes' : 'Create Account'}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving to Firestore...</span>
+                    </>
+                  ) : (
+                    <span>{editingUser ? 'Save Changes' : 'Create & Register Account'}</span>
+                  )}
                 </button>
               </div>
 

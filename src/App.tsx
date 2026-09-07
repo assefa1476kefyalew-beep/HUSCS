@@ -34,19 +34,28 @@ import { InstitutionalReports } from './components/admin/InstitutionalReports';
 import { AuditLogsViewer } from './components/admin/AuditLogsViewer';
 import { PortalSettings } from './components/admin/PortalSettings';
 
-import { ClearanceCertificate, ClearanceReasonType, SupportingDocument } from './types';
+import { ClearanceCertificate, ClearanceReasonType, SupportingDocument, User } from './types';
 import { Award, CheckCircle2, AlertCircle, Loader2, GraduationCap } from 'lucide-react';
 import { PublicVerificationModal } from './components/common/PublicVerificationModal';
+import { AccountProfileModal } from './components/common/AccountProfileModal';
 
 export default function App() {
   const store = useClearanceStore();
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(() => auth.currentUser);
+  const [isLocalAuth, setIsLocalAuth] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('hu_clearance_authenticated') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('student-dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
   const [activeCertificate, setActiveCertificate] = useState<ClearanceCertificate | null>(null);
   const [showVerificationModal, setShowVerificationModal] = useState<boolean>(false);
+  const [showAccountProfileModal, setShowAccountProfileModal] = useState<boolean>(false);
   const [isWizardMode, setIsWizardMode] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<{ title: string; desc: string; type?: 'success' | 'info' | 'error' } | null>(null);
 
@@ -55,24 +64,55 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Firebase Auth State Listener
+  // Firebase Auth State Listener & Session Hydration
   useEffect(() => {
+    const storedAuth = localStorage.getItem('hu_clearance_authenticated') === 'true';
+    if (storedAuth && store.currentUser) {
+      setIsLocalAuth(true);
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       setIsAuthChecking(false);
       if (user && user.email) {
+        setIsLocalAuth(true);
+        try {
+          localStorage.setItem('hu_clearance_authenticated', 'true');
+        } catch {}
         store.switchUserByEmail(user.email);
       }
     });
 
-    return () => unsubscribe();
+    const timer = setTimeout(() => {
+      setIsAuthChecking(false);
+    }, 1000);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
+
+  const handleAuthSuccess = (user?: User) => {
+    setIsLocalAuth(true);
+    try {
+      localStorage.setItem('hu_clearance_authenticated', 'true');
+    } catch {}
+    if (user) {
+      store.setCurrentUser(user);
+    }
+    showToast('Authenticated', 'Signed in successfully to Hawassa University Clearance Portal.');
+  };
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
-      store.logout();
+      try {
+        localStorage.removeItem('hu_clearance_authenticated');
+      } catch {}
+      setIsLocalAuth(false);
       setFirebaseUser(null);
+      store.logout();
+      await signOut(auth).catch(() => {});
       showToast('Signed Out', 'You have been signed out from Hawassa University Portal.');
     } catch (error) {
       console.error('Firebase sign out error:', error);
@@ -180,8 +220,11 @@ export default function App() {
     }
   };
 
-  // 1. Loading Authentication State Screen (Clean minimal loader without startup logo)
-  if (isAuthChecking) {
+  // Determine if there is an active session
+  const hasActiveSession = Boolean(firebaseUser || (isLocalAuth && store.currentUser));
+
+  // 1. Loading Authentication State Screen (Clean minimal loader)
+  if (isAuthChecking && !hasActiveSession) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-slate-100 p-6">
         <div className="flex items-center justify-center">
@@ -192,13 +235,11 @@ export default function App() {
   }
 
   // 2. Unauthenticated Screen (Sign In / Sign Up)
-  if (!firebaseUser) {
+  if (!hasActiveSession || !store.currentUser) {
     return (
       <AuthScreen
         systemSettings={store.systemSettings}
-        onAuthSuccess={() => {
-          showToast('Authenticated', 'Signed in successfully to Hawassa University Clearance Portal.');
-        }}
+        onAuthSuccess={handleAuthSuccess}
       />
     );
   }
@@ -237,6 +278,12 @@ export default function App() {
             setMobileSidebarOpen(!mobileSidebarOpen);
           } else {
             setIsSidebarCollapsed(!isSidebarCollapsed);
+          }
+        }}
+        onOpenProfile={() => setShowAccountProfileModal(true)}
+        onNavigateToEntity={(entity) => {
+          if (entity === 'profile') {
+            setShowAccountProfileModal(true);
           }
         }}
         onOpenPublicVerification={() => setShowVerificationModal(true)}
@@ -543,6 +590,8 @@ export default function App() {
               {activeTab === 'admin-audit' && (
                 <AuditLogsViewer
                   logs={store.auditLogs}
+                  onAddAuditLog={(log) => store.addAuditLog(log)}
+                  onShowToast={showToast}
                 />
               )}
 
@@ -582,6 +631,20 @@ export default function App() {
           student={store.students.find(s => s.studentId === activeCertificate.studentIdNumber)}
           departments={store.departments}
           onClose={() => setActiveCertificate(null)}
+        />
+      )}
+
+      {/* User Account Profile Modal (Accessible from top right) */}
+      {store.currentUser && (
+        <AccountProfileModal
+          isOpen={showAccountProfileModal}
+          onClose={() => setShowAccountProfileModal(false)}
+          currentUser={store.currentUser}
+          student={currentStudent || undefined}
+          departments={store.departments}
+          auditLogs={store.auditLogs}
+          onUpdateUser={(userId, updates) => store.updateUser(userId, updates)}
+          onShowToast={showToast}
         />
       )}
 
